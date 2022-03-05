@@ -85,7 +85,7 @@ VALUES = [
 ]
 
 
-def crc(data):
+def check_crc(data):
     """
     Check CRC Value of received data.
 
@@ -109,7 +109,7 @@ def crc(data):
     return False
 
 
-def bytes_to_float(data, start, length, div, format):
+def bytes_to_float(data, start, length, div, fmt):
     """
     Convert the byte values of the given metric to a float.
 
@@ -123,7 +123,7 @@ def bytes_to_float(data, start, length, div, format):
         how much bytes
     div : int
         divisor for byte value
-    format : str
+    fmt : str
         unpack format for struct.unpack()
 
     Returns
@@ -136,7 +136,7 @@ def bytes_to_float(data, start, length, div, format):
     if length == 1:
         return int(bytes_value.hex(), 16) / div
 
-    return struct.unpack(format, bytes_value)[0] / div
+    return struct.unpack(fmt, bytes_value)[0] / div
 
 
 def request_data_from_weather_station():
@@ -159,10 +159,10 @@ def request_data_from_weather_station():
         logging.error('Error getting data from weather station!')
     finally:
         sock.close()
-    if crc(data):
+    if check_crc(data):
         return data
 
-    logging.error('CRC failed! Data:', str(data))
+    logging.error('CRC failed! \r\n Data: %s', data)
     return 0
 
 
@@ -225,7 +225,7 @@ def send_data_to_graphite(list_of_metric_tuples):
         logging.info('Data successfully sent to graphite.')
         success = True
     except:
-        logging.error(f'Error sending data!\n{sys.exc_info()}')
+        logging.error('Error sending data!\n%s', sys.exc_info())
     finally:
         sock.close()
 
@@ -242,8 +242,8 @@ if __name__ == '__main__':
             if send_data_to_graphite(formatted_data):
                 sys.exit(0)
 
-        logging.warning(f'Retrying... [{retry}]')
+        logging.warning('Retrying... [%s]', retry)
         time.sleep(1)
 
-    logging.error(f'No success after {MAX_RETRIES} retries. Exiting.')
+    logging.error('No success after %s retries. Exiting.', MAX_RETRIES)
     sys.exit(0)
