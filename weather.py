@@ -88,7 +88,7 @@ def init_logger(file: str = '/volume1/docker/python/debug.log'):
         maxBytes=1e8,
         backupCount=2
     )
-    formatter = logging.Formatter('%(asctime)s %(levelname)s : %(message)s')
+    formatter = logging.Formatter('%(asctime)s %(funcName)s %(lineno)d %(levelname)s : %(message)s')
     logHandler.setFormatter(formatter)
     logger.addHandler(logHandler)
 
