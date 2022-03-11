@@ -8,7 +8,7 @@ This data is then visualized with Grafana.
 ## Requirements
 - [WS980 Weather Station](https://de.elv.com/elv-wifi-wetterstation-ws980wifi-inkl-funk-aussensensor-868-mhz-app-pc-auswertesoftware-250408), or similar
 - WiFi connection with known IP of the station
-- Python3 on the Host
+- Python3 and Graphite running on the Host
 
 ## Used Hardware
 - [WS980 Weather Station](https://de.elv.com/elv-wifi-wetterstation-ws980wifi-inkl-funk-aussensensor-868-mhz-app-pc-auswertesoftware-250408)
