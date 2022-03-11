@@ -5,6 +5,11 @@ This script is run every minute on the NAS via the task scheduler.
 Requests data from the weather station and sends it to the carbon receiver of graphite.
 This data is then visualized with Grafana.
 
+UPDATE:
+Since my NAS has some kind of Problem with its task scheduler, after some time the python process just hangs up and does not end, thus thus we can't get new data.
+To solve this issue, i just run a while(True) loop and wait 60 seconds to request new data.
+This script should be executed on each startup of the NAS...
+
 @author: Florian W
 """
 import logging
@@ -22,8 +27,9 @@ GRAPHITE_PORT    = 2004           # port for carbon receiver, 2004 is for pickle
 GRAPHITE_TIMEOUT = 2
 GRAPHITE_METRIC  = 'wetter.'      # metric header
 
-WEATHER_HOST     = '192.168.8.14' # IP address of the weather station
+WEATHER_HOST     = '192.168.8.55' # IP address of the weather station
 WEATHER_PORT     = 45000          # port of the weather station
+WEATHER_INTERVAL = 60
 
 MAX_RETRIES      = 10             # Retries when requesting data fails
 
@@ -34,23 +40,11 @@ CMD_MIN = b'\xff\xff\x0b\x00\x06\x06\x06\x1d'  # min values
 CMD_MAX = b'\xff\xff\x0b\x00\x06\x05\x05\x1b'  # max values
 
 
-""" Init logger. """
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-logHandler = handlers.RotatingFileHandler(
-    '/volume1/docker/python/debug.log',
-    maxBytes=1e8,
-    backupCount=2
-)
-formatter = logging.Formatter('%(asctime)s %(levelname)s : %(message)s')
-logHandler.setFormatter(formatter)
-logger.addHandler(logHandler)
-
-
 """
 Information about the received data.
 
 - Metric name
+- Name of the metric in the CSV which can be generated from the WeatherSmartIP Software to see historical data
 - Start index of value in bytearray (received from weather station)
 - Length of the data (1, 2 or 4 Bytes)
 - Divisor of the value
@@ -61,28 +55,42 @@ Information about the received data.
 - Unit (not necessary)
 """
 VALUES = [
-    {'name': 'temperatur.innen',      'start': 7,  'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
-    {'name': 'temperatur.aussen',     'start': 10, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
-    {'name': 'temperatur.taupunkt',   'start': 13, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
-    {'name': 'temperatur.gefuehlt',   'start': 16, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
-    {'name': 'temperatur.hitzeIndex', 'start': 19, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
-    {'name': 'feuchte.innen',         'start': 22, 'length': 1, 'div': 1,     'format': ''  , 'unit': '%'   },
-    {'name': 'feuchte.aussen',        'start': 24, 'length': 1, 'div': 1,     'format': ''  , 'unit': '%'   },
-    {'name': 'druck.absolut',         'start': 26, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'hPa' },
-    {'name': 'druck.relativ',         'start': 29, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'hPa' },
-    {'name': 'wind.richtung',         'start': 32, 'length': 2, 'div': 1,     'format': '>h', 'unit': '°'   },
-    {'name': 'wind.geschwindigkeit',  'start': 35, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'km/h'},
-    {'name': 'wind.boee',             'start': 38, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'km/h'},
-    {'name': 'niederschlag.aktuell',  'start': 41, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'niederschlag.tag',      'start': 46, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'niederschlag.woche',    'start': 51, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'niederschlag.monat',    'start': 56, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'niederschlag.jahr',     'start': 61, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'niederschlag.gesamt',   'start': 66, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'licht.aktuell',         'start': 71, 'length': 4, 'div': 10000, 'format': '>I', 'unit': 'w/m²'},  # unrealistic values?!
-    {'name': 'licht.uvWert',          'start': 76, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'w/m²'},  # unrealistic values?!
-    {'name': 'licht.uvIndex',         'start': 79, 'length': 1, 'div': 1,     'format': ''  , 'unit': ''    }
+    {'name': 'temperatur.innen',      'csv_name': 'Innentemperatur(°C)',           'start': 7,  'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
+    {'name': 'temperatur.aussen',     'csv_name': 'Außentemperatur(°C)',           'start': 10, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
+    {'name': 'temperatur.taupunkt',   'csv_name': 'Taupunkt(°C)',                  'start': 13, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
+    {'name': 'temperatur.gefuehlt',   'csv_name': 'Gefühlte Temperatur(°C)',       'start': 16, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
+    {'name': 'temperatur.hitzeIndex', 'csv_name': '',                              'start': 19, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
+    {'name': 'feuchte.innen',         'csv_name': 'Innenluftfeuchtigkeit(%)',      'start': 22, 'length': 1, 'div': 1,     'format': ''  , 'unit': '%'   },
+    {'name': 'feuchte.aussen',        'csv_name': 'Außenluftfeuchtigkeit(%)',      'start': 24, 'length': 1, 'div': 1,     'format': ''  , 'unit': '%'   },
+    {'name': 'druck.absolut',         'csv_name': 'Absoluter Luftdruck(hPa)',      'start': 26, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'hPa' },
+    {'name': 'druck.relativ',         'csv_name': 'Relativer Luftdruck(hPa)',      'start': 29, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'hPa' },
+    {'name': 'wind.richtung',         'csv_name': 'Windrichtung',                  'start': 32, 'length': 2, 'div': 1,     'format': '>h', 'unit': '°'   },
+    {'name': 'wind.geschwindigkeit',  'csv_name': 'Wind(km/h)',                    'start': 35, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'km/h'},
+    {'name': 'wind.boee',             'csv_name': 'Windböe(km/h)',                 'start': 38, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'km/h'},
+    {'name': 'niederschlag.aktuell',  'csv_name': '',                              'start': 41, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
+    {'name': 'niederschlag.tag',      'csv_name': '24-Stunden-Niederschlag(mm)',   'start': 46, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
+    {'name': 'niederschlag.woche',    'csv_name': 'WöchentlicherNiederschlag(mm)', 'start': 51, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
+    {'name': 'niederschlag.monat',    'csv_name': 'Monatlicher Niederschlag(mm)',  'start': 56, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
+    {'name': 'niederschlag.jahr',     'csv_name': 'Jahr Niederschlag(mm)',         'start': 61, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
+    {'name': 'niederschlag.gesamt',   'csv_name': 'Gesamter Niederschlag(mm)',     'start': 66, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
+    {'name': 'licht.aktuell',         'csv_name': 'Beleuchtung(w/m2)',             'start': 71, 'length': 4, 'div': 10000, 'format': '>I', 'unit': 'w/m²'},  # unrealistic values?!
+    {'name': 'licht.uvWert',          'csv_name': '',                              'start': 76, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'w/m²'},  # unrealistic values?!
+    {'name': 'licht.uvIndex',         'csv_name': 'UV-Index',                      'start': 79, 'length': 1, 'div': 1,     'format': ''  , 'unit': ''    }
 ]
+
+
+def init_logger(file: str = '/volume1/docker/python/debug.log'):
+    """ Init logger. """
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    logHandler = handlers.RotatingFileHandler(
+        file,
+        maxBytes=1e8,
+        backupCount=2
+    )
+    formatter = logging.Formatter('%(asctime)s %(levelname)s : %(message)s')
+    logHandler.setFormatter(formatter)
+    logger.addHandler(logHandler)
 
 
 def check_crc(data):
@@ -234,16 +242,24 @@ def send_data_to_graphite(list_of_metric_tuples):
 
 if __name__ == '__main__':
 
-    for retry in range(MAX_RETRIES):
-        weather_data = request_data_from_weather_station()
+    init_logger()
 
-        if weather_data != 0:
-            formatted_data = format_data_for_graphite(weather_data)
-            if send_data_to_graphite(formatted_data):
-                sys.exit(0)
+    while True:
+        for retry in range(MAX_RETRIES):
+            try:
+                weather_data = request_data_from_weather_station()
 
-        logging.warning('Retrying... [%s]', retry)
-        time.sleep(1)
+                if weather_data != 0:
+                    formatted_data = format_data_for_graphite(weather_data)
 
-    logging.error('No success after %s retries. Exiting.', MAX_RETRIES)
-    sys.exit(0)
+                    result = send_data_to_graphite(formatted_data)
+                    if result is False:
+                        logging.error('Error sending data to graphite.')
+                        logging.warning('Retrying... [%s]', retry)
+                        time.sleep(1)
+                    else:
+                        break
+            except:
+                logging.critical('Unexpected error! %s.', sys.exc_info())
+
+        time.sleep(WEATHER_INTERVAL)
