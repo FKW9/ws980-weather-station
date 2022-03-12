@@ -33,7 +33,7 @@ def format_data_for_graphite(data_frame: pd.DataFrame):
                     (
                         GRAPHITE_METRIC + dict['name'],
                             (
-                                unix_timestamp-120, float(data_frame[dict['csv_name']][row])
+                                unix_timestamp, float(data_frame[dict['csv_name']][row])
                             )
                     )
                 )
