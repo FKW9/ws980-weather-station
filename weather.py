@@ -156,8 +156,12 @@ def request_data_from_weather_station():
     bytes
         received data, 0 if error occurred
     """
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((WEATHER_HOST, WEATHER_PORT))
+    # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # sock.connect((WEATHER_HOST, WEATHER_PORT))
+    # sock.set
+
+    sock = socket.create_connection((WEATHER_HOST, WEATHER_PORT), GRAPHITE_TIMEOUT)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     data = 0
     try:
