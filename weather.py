@@ -5,21 +5,31 @@ This script is run every minute on the NAS via the task scheduler.
 Requests data from the weather station and sends it to the carbon receiver of graphite.
 This data is then visualized with Grafana.
 
-UPDATE:
-Since my NAS has some kind of Problem with its task scheduler, after some time the python process just hangs up and does not end, thus thus we can't get new data.
+UPDATE 1:
+Since my NAS has some kind of Problem with its task scheduler, after some time the python process just hangs up and does not end, thus we can't get new data.
 To solve this issue, i just run a while(True) loop and wait 60 seconds to request new data.
 This script should be executed on each startup of the NAS...
 
+UPDATE 2:
+The above update helps, but after a while, the python process still hangs up and does nothing.
+I solved this with a timer, which calls sys.exit(0) after 15 seconds, to terminate the script.
+The script is called every minute via the task scheduler.
+This is up for 2 weeks now and just works fine.
+
 @author: Florian W
 """
-import logging
 import logging.handlers as handlers
+import logging
 import pickle
 import socket
 import struct
 import sys
 import time
+from threading import Timer
 
+""" EXIT PROGRAM AFTER 15 SECONDS """
+EXIT_TIMER = Timer(15, sys.exit)
+EXIT_TIMER.start()
 
 """ Configuration options. """
 GRAPHITE_HOST    = '192.168.8.42' # IP address of the NAS
@@ -73,8 +83,8 @@ VALUES = [
     {'name': 'niederschlag.monat',    'csv_name': 'Monatlicher Niederschlag(mm)',  'start': 56, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
     {'name': 'niederschlag.jahr',     'csv_name': 'Jahr Niederschlag(mm)',         'start': 61, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
     {'name': 'niederschlag.gesamt',   'csv_name': 'Gesamter Niederschlag(mm)',     'start': 66, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'licht.aktuell',         'csv_name': 'Beleuchtung(w/m2)',             'start': 71, 'length': 4, 'div': 10000, 'format': '>I', 'unit': 'w/m²'},  # unrealistic values?!
-    {'name': 'licht.uvWert',          'csv_name': '',                              'start': 76, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'w/m²'},  # unrealistic values?!
+    {'name': 'licht.aktuell',         'csv_name': 'Beleuchtung(w/m2)',             'start': 71, 'length': 4, 'div': 10000, 'format': '>I', 'unit': 'W/m²'},
+    {'name': 'licht.uvWert',          'csv_name': '',                              'start': 76, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'W/m²'},
     {'name': 'licht.uvIndex',         'csv_name': 'UV-Index',                      'start': 79, 'length': 1, 'div': 1,     'format': ''  , 'unit': ''    }
 ]
 
@@ -156,10 +166,6 @@ def request_data_from_weather_station():
     bytes
         received data, 0 if error occurred
     """
-    # sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # sock.connect((WEATHER_HOST, WEATHER_PORT))
-    # sock.set
-
     sock = socket.create_connection((WEATHER_HOST, WEATHER_PORT), GRAPHITE_TIMEOUT)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -234,7 +240,7 @@ def send_data_to_graphite(list_of_metric_tuples):
     success = False
     try:
         sock.sendall(message)
-        logging.info('Data successfully sent to graphite.')
+        # logging.info('Data successfully sent to graphite.')
         success = True
     except:
         logging.error('Error sending data!\n%s', sys.exc_info())
@@ -248,22 +254,14 @@ if __name__ == '__main__':
 
     init_logger()
 
-    while True:
-        for retry in range(MAX_RETRIES):
-            try:
-                weather_data = request_data_from_weather_station()
+    try:
+        weather_data = request_data_from_weather_station()
 
-                if weather_data != 0:
-                    formatted_data = format_data_for_graphite(weather_data)
+        if weather_data != 0:
+            formatted_data = format_data_for_graphite(weather_data)
 
-                    result = send_data_to_graphite(formatted_data)
-                    if result is False:
-                        logging.error('Error sending data to graphite.')
-                        logging.warning('Retrying... [%s]', retry)
-                        time.sleep(1)
-                    else:
-                        break
-            except:
-                logging.critical('Unexpected error! %s.', sys.exc_info())
-
-        time.sleep(WEATHER_INTERVAL)
+            result = send_data_to_graphite(formatted_data)
+            if result is False:
+                logging.error('Error sending data to graphite.')
+    except:
+        logging.critical('Unexpected error! %s.', sys.exc_info())
