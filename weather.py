@@ -11,10 +11,14 @@ To solve this issue, i just run a while(True) loop and wait 60 seconds to reques
 This script should be executed on each startup of the NAS...
 
 UPDATE 2:
-The above update helps, but after a while, the python process still hangs up and does nothing.
-I solved this with a timer, which calls sys.exit(0) after 15 seconds, to terminate the script.
+The above update helps, but after a while, the python process still freezes and does nothing.
+I solved this with a timer, which calls sys.exit(0) after 10 seconds, to terminate the script.
 The script is called every minute via the task scheduler.
-This is up for 2 weeks now and just works fine.
+This is up for many weeks now and just works fine.
+
+UPDATE 3:
+Since my router does not support assigning a static ip to a MAC address or similar, it can happen that the IP of the weather station changes.
+To find the IP, we make an UDP broadcast on port 46000 and the weather station should respond with its name, in my case, "EasyWeather-WIFIDB77".
 
 @author: Florian W
 """
@@ -31,7 +35,7 @@ from threading import Timer
 EXIT_TIMER = Timer(10, sys.exit)
 EXIT_TIMER.start()
 
-""" Configuration options. """
+""" Connection options. """
 GRAPHITE_HOST    = '192.168.8.42' # IP address of the NAS
 GRAPHITE_PORT    = 2004           # port for carbon receiver, 2004 is for pickled data
 GRAPHITE_TIMEOUT = 2
@@ -48,6 +52,7 @@ MAX_RETRIES      = 10             # Retries when requesting data fails
 CMD_ACT = b'\xff\xff\x0b\x00\x06\x04\x04\x19'  # get current values
 CMD_MIN = b'\xff\xff\x0b\x00\x06\x06\x06\x1d'  # min values
 CMD_MAX = b'\xff\xff\x0b\x00\x06\x05\x05\x1b'  # max values
+CMD_BRC = b'\xff\xff\x12\x00\x04\x16'          # command for broadcast
 
 
 """
@@ -166,8 +171,13 @@ def request_data_from_weather_station():
     bytes
         received data, 0 if error occurred
     """
-    sock = socket.create_connection((WEATHER_HOST, WEATHER_PORT), GRAPHITE_TIMEOUT)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        sock = socket.create_connection((WEATHER_HOST, WEATHER_PORT), GRAPHITE_TIMEOUT)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    except socket.timeout:
+        logging.error('Timeout connecting to weather station!')
+        discover_weather_station()
+        return 0
 
     data = 0
     try:
@@ -177,6 +187,7 @@ def request_data_from_weather_station():
         logging.error('Error getting data from weather station!')
     finally:
         sock.close()
+
     if check_crc(data):
         return data
 
@@ -248,6 +259,54 @@ def send_data_to_graphite(list_of_metric_tuples):
         sock.close()
 
     return success
+
+
+def discover_weather_station():
+    """
+    Send UDP Broadcast to discover the weather station on the network.
+
+    If valid data was received, updates the ``WEATHER_HOST`` variable with the correct IP.
+    """
+    interfaces = socket.getaddrinfo(host=socket.gethostname(), port=None, family=socket.AF_INET)
+
+    logging.info(socket.gethostname())
+    logging.info(socket.getaddrinfo(host=socket.gethostname(), port=None))
+
+    all_ips = [ip[-1][0] for ip in interfaces] + ['192.168.8.1', '192.168.56.1', '192.168.8.155', '192.168.8.154']
+
+    for ip in all_ips:
+        try:
+            logging.info('Broadcasting on: %s', ip)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            sock.settimeout(0.1)
+
+            sock.bind((ip, 0))
+            sock.sendto(CMD_BRC, ('255.255.255.255', 46000))
+            data, server = sock.recvfrom(1024)
+
+            if b'EasyWeather-WIFIDB77' in data:
+                update_weather_host_ip(server[0])
+        except:
+            logging.error('Failed: %s', sys.exc_info())
+        finally:
+            sock.close()
+
+
+def update_weather_host_ip(new_ip: str, file_path: str = '/volume1/docker/python/weather.py'):
+    """Updates the ``WEATHER_HOST`` variable."""
+    if new_ip == WEATHER_HOST:
+        return
+
+    logging.info('Updating Weather Station IP to: %s', new_ip)
+
+    file_contents = None
+    with open(file_path, 'r') as f:
+        file_contents = f.read()
+        file_contents = file_contents.replace(WEATHER_HOST, new_ip, 1)
+
+    with open(file_path, 'w') as f:
+        f.write(file_contents)
 
 
 if __name__ == '__main__':
