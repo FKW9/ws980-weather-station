@@ -27,8 +27,8 @@ import sys
 import time
 from threading import Timer
 
-""" EXIT PROGRAM AFTER 15 SECONDS """
-EXIT_TIMER = Timer(15, sys.exit)
+""" EXIT PROGRAM AFTER 10 SECONDS """
+EXIT_TIMER = Timer(10, sys.exit)
 EXIT_TIMER.start()
 
 """ Configuration options. """
@@ -37,7 +37,7 @@ GRAPHITE_PORT    = 2004           # port for carbon receiver, 2004 is for pickle
 GRAPHITE_TIMEOUT = 2
 GRAPHITE_METRIC  = 'wetter.'      # metric header
 
-WEATHER_HOST     = '192.168.8.55' # IP address of the weather station
+WEATHER_HOST     = '192.168.8.154' # IP address of the weather station
 WEATHER_PORT     = 45000          # port of the weather station
 WEATHER_INTERVAL = 60
 
