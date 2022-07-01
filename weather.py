@@ -37,7 +37,7 @@ GRAPHITE_PORT    = 2004           # port for carbon receiver, 2004 is for pickle
 GRAPHITE_TIMEOUT = 2
 GRAPHITE_METRIC  = 'wetter.'      # metric header
 
-WEATHER_HOST     = '192.168.8.165' # IP address of the weather station
+WEATHER_HOST     = '192.168.8.55' # IP address of the weather station
 WEATHER_PORT     = 45000          # port of the weather station
 WEATHER_INTERVAL = 60
 
@@ -65,27 +65,27 @@ Information about the received data.
 - Unit (not necessary)
 """
 VALUES = [
-    {'name': 'temperatur.innen',      'csv_name': 'Innentemperatur(°C)',           'start': 7,  'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
-    {'name': 'temperatur.aussen',     'csv_name': 'Außentemperatur(°C)',           'start': 10, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
-    {'name': 'temperatur.taupunkt',   'csv_name': 'Taupunkt(°C)',                  'start': 13, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
-    {'name': 'temperatur.gefuehlt',   'csv_name': 'Gefühlte Temperatur(°C)',       'start': 16, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
-    {'name': 'temperatur.hitzeIndex', 'csv_name': '',                              'start': 19, 'length': 2, 'div': 10,    'format': '>h', 'unit': '°C'  },
-    {'name': 'feuchte.innen',         'csv_name': 'Innenluftfeuchtigkeit(%)',      'start': 22, 'length': 1, 'div': 1,     'format': ''  , 'unit': '%'   },
-    {'name': 'feuchte.aussen',        'csv_name': 'Außenluftfeuchtigkeit(%)',      'start': 24, 'length': 1, 'div': 1,     'format': ''  , 'unit': '%'   },
-    {'name': 'druck.absolut',         'csv_name': 'Absoluter Luftdruck(hPa)',      'start': 26, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'hPa' },
-    {'name': 'druck.relativ',         'csv_name': 'Relativer Luftdruck(hPa)',      'start': 29, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'hPa' },
-    {'name': 'wind.richtung',         'csv_name': 'Windrichtung',                  'start': 32, 'length': 2, 'div': 1,     'format': '>h', 'unit': '°'   },
-    {'name': 'wind.geschwindigkeit',  'csv_name': 'Wind(km/h)',                    'start': 35, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'km/h'},
-    {'name': 'wind.boee',             'csv_name': 'Windböe(km/h)',                 'start': 38, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'km/h'},
-    {'name': 'niederschlag.aktuell',  'csv_name': '',                              'start': 41, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'niederschlag.tag',      'csv_name': '24-Stunden-Niederschlag(mm)',   'start': 46, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'niederschlag.woche',    'csv_name': 'WöchentlicherNiederschlag(mm)', 'start': 51, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'niederschlag.monat',    'csv_name': 'Monatlicher Niederschlag(mm)',  'start': 56, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'niederschlag.jahr',     'csv_name': 'Jahr Niederschlag(mm)',         'start': 61, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'niederschlag.gesamt',   'csv_name': 'Gesamter Niederschlag(mm)',     'start': 66, 'length': 4, 'div': 10,    'format': '>I', 'unit': 'mm'  },
-    {'name': 'licht.aktuell',         'csv_name': 'Beleuchtung(w/m2)',             'start': 71, 'length': 4, 'div': 10000, 'format': '>I', 'unit': 'W/m²'},
-    {'name': 'licht.uvWert',          'csv_name': '',                              'start': 76, 'length': 2, 'div': 10,    'format': '>h', 'unit': 'W/m²'},
-    {'name': 'licht.uvIndex',         'csv_name': 'UV-Index',                      'start': 79, 'length': 1, 'div': 1,     'format': ''  , 'unit': ''    }
+    {'name': 'temperatur.innen',      'csv_name': 'Innentemperatur(°C)',           'start': 7,  'length': 2, 'div': 10, 'format': '>h', 'unit': '°C'   },
+    {'name': 'temperatur.aussen',     'csv_name': 'Außentemperatur(°C)',           'start': 10, 'length': 2, 'div': 10, 'format': '>h', 'unit': '°C'   },
+    {'name': 'temperatur.taupunkt',   'csv_name': 'Taupunkt(°C)',                  'start': 13, 'length': 2, 'div': 10, 'format': '>h', 'unit': '°C'   },
+    {'name': 'temperatur.gefuehlt',   'csv_name': 'Gefühlte Temperatur(°C)',       'start': 16, 'length': 2, 'div': 10, 'format': '>h', 'unit': '°C'   },
+    {'name': 'temperatur.hitzeIndex', 'csv_name': '',                              'start': 19, 'length': 2, 'div': 10, 'format': '>h', 'unit': '°C'   },
+    {'name': 'feuchte.innen',         'csv_name': 'Innenluftfeuchtigkeit(%)',      'start': 22, 'length': 1, 'div': 1,  'format': ''  , 'unit': '%'    },
+    {'name': 'feuchte.aussen',        'csv_name': 'Außenluftfeuchtigkeit(%)',      'start': 24, 'length': 1, 'div': 1,  'format': ''  , 'unit': '%'    },
+    {'name': 'druck.absolut',         'csv_name': 'Absoluter Luftdruck(hPa)',      'start': 26, 'length': 2, 'div': 10, 'format': '>h', 'unit': 'hPa'  },
+    {'name': 'druck.relativ',         'csv_name': 'Relativer Luftdruck(hPa)',      'start': 29, 'length': 2, 'div': 10, 'format': '>h', 'unit': 'hPa'  },
+    {'name': 'wind.richtung',         'csv_name': 'Windrichtung',                  'start': 32, 'length': 2, 'div': 1,  'format': '>h', 'unit': '°'    },
+    {'name': 'wind.geschwindigkeit',  'csv_name': 'Wind(km/h)',                    'start': 35, 'length': 2, 'div': 10, 'format': '>h', 'unit': 'm/s'  },
+    {'name': 'wind.boee',             'csv_name': 'Windböe(km/h)',                 'start': 38, 'length': 2, 'div': 10, 'format': '>h', 'unit': 'm/s'  },
+    {'name': 'niederschlag.aktuell',  'csv_name': '',                              'start': 41, 'length': 4, 'div': 10, 'format': '>I', 'unit': 'mm'   },
+    {'name': 'niederschlag.tag',      'csv_name': '24-Stunden-Niederschlag(mm)',   'start': 46, 'length': 4, 'div': 10, 'format': '>I', 'unit': 'mm'   },
+    {'name': 'niederschlag.woche',    'csv_name': 'WöchentlicherNiederschlag(mm)', 'start': 51, 'length': 4, 'div': 10, 'format': '>I', 'unit': 'mm'   },
+    {'name': 'niederschlag.monat',    'csv_name': 'Monatlicher Niederschlag(mm)',  'start': 56, 'length': 4, 'div': 10, 'format': '>I', 'unit': 'mm'   },
+    {'name': 'niederschlag.jahr',     'csv_name': 'Jahr Niederschlag(mm)',         'start': 61, 'length': 4, 'div': 10, 'format': '>I', 'unit': 'mm'   },
+    {'name': 'niederschlag.gesamt',   'csv_name': 'Gesamter Niederschlag(mm)',     'start': 66, 'length': 4, 'div': 10, 'format': '>I', 'unit': 'mm'   },
+    {'name': 'licht.aktuell',         'csv_name': 'Beleuchtung(lux)',              'start': 71, 'length': 4, 'div': 10, 'format': '>I', 'unit': 'lux'  },
+    {'name': 'licht.uvWert',          'csv_name': '',                              'start': 76, 'length': 2, 'div': 1,  'format': '>h', 'unit': 'uW/m²'},
+    {'name': 'licht.uvIndex',         'csv_name': 'UV-Index',                      'start': 79, 'length': 1, 'div': 1,  'format': ''  , 'unit': ''     }
 ]
 
 
