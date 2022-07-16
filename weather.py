@@ -35,6 +35,7 @@ from threading import Timer
 EXIT_TIMER = Timer(10, sys.exit)
 EXIT_TIMER.start()
 
+
 """ Connection options. """
 GRAPHITE_HOST    = '192.168.8.42' # IP address of the NAS
 GRAPHITE_PORT    = 2004           # port for carbon receiver, 2004 is for pickled data
@@ -174,8 +175,8 @@ def request_data_from_weather_station():
     try:
         sock = socket.create_connection((WEATHER_HOST, WEATHER_PORT), GRAPHITE_TIMEOUT)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    except socket.timeout:
-        logging.error('Timeout connecting to weather station!')
+    except:
+        logging.error('Error connecting to weather station!')
         discover_weather_station()
         return 0
 
@@ -263,34 +264,27 @@ def send_data_to_graphite(list_of_metric_tuples):
 
 def discover_weather_station():
     """
-    Send UDP Broadcast to discover the weather station on the network.
+    Send Multicast Message to discover the weather station on the network.
 
     If valid data was received, updates the ``WEATHER_HOST`` variable with the correct IP.
     """
-    interfaces = socket.getaddrinfo(host=socket.gethostname(), port=None, family=socket.AF_INET)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(2)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-    logging.info(socket.gethostname())
-    logging.info(socket.getaddrinfo(host=socket.gethostname(), port=None))
+    try:
+        sock.sendto(CMD_BRC, ('192.168.8.255', 46000))
 
-    all_ips = [ip[-1][0] for ip in interfaces] + ['192.168.8.1', '192.168.56.1', '192.168.8.155', '192.168.8.154']
-
-    for ip in all_ips:
         try:
-            logging.info('Broadcasting on: %s', ip)
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            sock.settimeout(0.1)
-
-            sock.bind((ip, 0))
-            sock.sendto(CMD_BRC, ('255.255.255.255', 46000))
             data, server = sock.recvfrom(1024)
-
+        except:
+            pass
+        else:
             if b'EasyWeather-WIFIDB77' in data:
                 update_weather_host_ip(server[0])
-        except:
-            logging.error('Failed: %s', sys.exc_info())
-        finally:
-            sock.close()
+
+    finally:
+        sock.close()
 
 
 def update_weather_host_ip(new_ip: str, file_path: str = '/volume1/docker/python/weather.py'):
