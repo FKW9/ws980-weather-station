@@ -22,14 +22,16 @@ To find the IP, we make an UDP broadcast on port 46000 and the weather station s
 
 @author: Florian W
 """
-import logging.handlers as handlers
 import logging
+import logging.handlers as handlers
 import pickle
 import socket
 import struct
 import sys
 import time
 from threading import Timer
+
+from loki_client import LokiHandler
 
 """ EXIT PROGRAM AFTER 10 SECONDS """
 EXIT_TIMER = Timer(10, sys.exit)
@@ -42,7 +44,7 @@ GRAPHITE_PORT    = 2004           # port for carbon receiver, 2004 is for pickle
 GRAPHITE_TIMEOUT = 2
 GRAPHITE_METRIC  = 'wetter.'      # metric header
 
-WEATHER_HOST     = '192.168.8.55' # IP address of the weather station
+WEATHER_HOST     = '192.168.8.25' # IP address of the weather station
 WEATHER_PORT     = 45000          # port of the weather station
 WEATHER_INTERVAL = 60
 
@@ -95,7 +97,7 @@ VALUES = [
 ]
 
 
-def init_logger(file: str = '/volume1/docker/python/debug.log'):
+def init_logger(file: str = '/volume1/docker/python/debug_wetterstation.log'):
     """ Init logger. """
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
@@ -105,8 +107,10 @@ def init_logger(file: str = '/volume1/docker/python/debug.log'):
         backupCount=2
     )
     formatter = logging.Formatter('%(asctime)s %(funcName)s %(lineno)d %(levelname)s : %(message)s')
+    lokiHandler = LokiHandler(logging.INFO, "wetterstation")
     logHandler.setFormatter(formatter)
     logger.addHandler(logHandler)
+    logger.addHandler(lokiHandler)
 
 
 def check_crc(data):
@@ -192,7 +196,7 @@ def request_data_from_weather_station():
     if check_crc(data):
         return data
 
-    logging.error('CRC failed! \r\n Data: %s', data)
+    logging.error('CRC failed! Data: %s', data)
     return 0
 
 
@@ -270,6 +274,7 @@ def discover_weather_station():
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(2)
+
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
     try:
@@ -307,14 +312,15 @@ if __name__ == '__main__':
 
     init_logger()
 
-    try:
-        weather_data = request_data_from_weather_station()
+    # try:
+    weather_data = request_data_from_weather_station()
 
-        if weather_data != 0:
-            formatted_data = format_data_for_graphite(weather_data)
+    if weather_data != 0:
+        formatted_data = format_data_for_graphite(weather_data)
 
-            result = send_data_to_graphite(formatted_data)
-            if result is False:
-                logging.error('Error sending data to graphite.')
-    except:
-        logging.critical('Unexpected error! %s.', sys.exc_info())
+        success = send_data_to_graphite(formatted_data)
+        if success:
+            EXIT_TIMER.cancel()
+            sys.exit(0)
+    # except:
+        # logging.critical('Unexpected error! %s.', sys.exc_info())
